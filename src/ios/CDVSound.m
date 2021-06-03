@@ -27,22 +27,21 @@
 
 @implementation CDVSound
 
-BOOL keepAvAudioSessionAlwaysActive = NO;
+BOOL keepAvAudioSessionAlwaysActive = YES;
 
 @synthesize soundCache, avSession, currMediaId, statusCallbackId;
 
 -(void) pluginInitialize
 {
     NSDictionary* settings = self.commandDelegate.settings;
-    keepAvAudioSessionAlwaysActive = [[settings objectForKey:[@"KeepAVAudioSessionAlwaysActive" lowercaseString]] boolValue];
-    if (keepAvAudioSessionAlwaysActive) {
-        if ([self hasAudioSession]) {
+    if ([self hasAudioSession]) {
             NSError* error = nil;
             if(![self.avSession setActive:YES error:&error]) {
                 NSLog(@"Unable to activate session: %@", [error localizedFailureReason]);
             }
         }
-    }
+    [self.avSession setActive:NO error:nil];
+    [self.avSession setCategory:AVAudioSessionCategoryPlayback withOptions:AVAudioSessionCategoryOptionDuckOthers error:nil];
 }
 
 // Maps a url for a resource path for recording
@@ -370,8 +369,7 @@ BOOL keepAvAudioSessionAlwaysActive = NO;
                     bPlayAudioWhenScreenIsLocked = [playAudioWhenScreenIsLocked boolValue];
                 }
 
-                NSString* sessionCategory = bPlayAudioWhenScreenIsLocked ? AVAudioSessionCategoryPlayback : AVAudioSessionCategorySoloAmbient;
-                [self.avSession setCategory:sessionCategory withOptions:AVAudioSessionCategoryOptionMixWithOthers error:&err];
+                
                 if (![self.avSession setActive:YES error:&err]) {
                     // other audio with higher priority that does not allow mixing could cause this to fail
                     NSLog(@"Unable to play audio: %@", [err localizedFailureReason]);
@@ -603,31 +601,7 @@ BOOL keepAvAudioSessionAlwaysActive = NO;
 
 - (void)release:(CDVInvokedUrlCommand*)command
 {
-    NSString* mediaId = [command argumentAtIndex:0];
-    //NSString* mediaId = self.currMediaId;
-
-    if (mediaId != nil) {
-        CDVAudioFile* audioFile = [[self soundCache] objectForKey:mediaId];
-
-        if (audioFile != nil) {
-            if (audioFile.player && [audioFile.player isPlaying]) {
-                [audioFile.player stop];
-            }
-            if (audioFile.recorder && [audioFile.recorder isRecording]) {
-                [audioFile.recorder stop];
-            }
-            if (avPlayer != nil) {
-                [avPlayer pause];
-                avPlayer = nil;
-            }
-            if (! keepAvAudioSessionAlwaysActive && self.avSession && ! [self isPlayingOrRecording]) {
-                [self.avSession setActive:NO error:nil];
-                self.avSession = nil;
-            }
-            [[self soundCache] removeObjectForKey:mediaId];
-            NSLog(@"Media with id %@ released", mediaId);
-        }
-    }
+    [self.avSession setActive:NO error:nil];
 }
 
 - (void)getCurrentPositionAudio:(CDVInvokedUrlCommand*)command
